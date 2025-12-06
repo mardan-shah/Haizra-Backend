@@ -15,6 +15,48 @@
       "when": 1764883225352,
       "tag": "0001_good_the_initiative",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1764888496329,
+      "tag": "0002_tired_zaladane",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1764888610851,
+      "tag": "0003_moaning_wonder_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1765017456205,
+      "tag": "0004_adorable_tinkerer",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1765021044183,
+      "tag": "0005_mushy_rogue",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1765024529677,
+      "tag": "0006_dapper_lady_deathstrike",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1765030750227,
+      "tag": "0007_lush_praxagora",
+      "breakpoints": true
     }
   ]
 }

@@ -1,0 +1,1 @@
+ALTER TABLE "auctions" ADD COLUMN "total_bids" integer DEFAULT 0 NOT NULL;
