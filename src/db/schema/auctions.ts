@@ -1,5 +1,5 @@
 // auctions.ts
-import { pgTable, serial, text, varchar, timestamp, integer, numeric, primaryKey } from 'drizzle-orm/pg-core';
+import { pgTable, text, varchar, timestamp, integer, numeric, primaryKey, uuid } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { users } from './users';
 import { products } from './products';
@@ -9,9 +9,9 @@ const auctionStatusEnum = ['open', 'closed', 'settled', 'cancelled'] as const;
 
 // --- Auctions Table ---
 export const auctions = pgTable('auctions', {
-    id: serial('id').primaryKey(),
-    productId: integer('product_id').notNull().unique().references(() => products.id, { onDelete: 'cascade' }),
-    sellerId: integer('seller_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
+    id: uuid('id').defaultRandom().primaryKey(),
+    productId: uuid('product_id').notNull().unique().references(() => products.id, { onDelete: 'cascade' }),
+    sellerId: uuid('seller_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
     
     startPrice: numeric('start_price', { precision: 10, scale: 2 }).notNull(),
     currentPrice: numeric('current_price', { precision: 10, scale: 2 }).notNull(),
@@ -23,17 +23,17 @@ export const auctions = pgTable('auctions', {
     totalBids: integer('total_bids').default(0).notNull(),
     
     // Winning bid details
-    winningBidId: integer('winning_bid_id'),
-    winnerId: integer('winner_id').references(() => users.id, { onDelete: 'set null' }),
+    winningBidId: uuid('winning_bid_id'),
+    winnerId: uuid('winner_id').references(() => users.id, { onDelete: 'set null' }),
     
     createdAt: timestamp('created_at').default(sql`now()`).notNull(),
 });
 
 // --- Bids Table ---
 export const bids = pgTable('bids', {
-    id: serial('id').primaryKey(),
-    auctionId: integer('auction_id').notNull().references(() => auctions.id, { onDelete: 'cascade' }),
-    bidderId: integer('bidder_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
+    id: uuid('id').defaultRandom().primaryKey(),
+    auctionId: uuid('auction_id').notNull().references(() => auctions.id, { onDelete: 'cascade' }),
+    bidderId: uuid('bidder_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
     
     amount: numeric('amount', { precision: 10, scale: 2 }).notNull(),
     

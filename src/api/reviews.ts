@@ -13,16 +13,16 @@ import { auth } from '../utils/auth';
 
 // Schema for Creating a Review
 const CreateReviewBody = t.Object({
-    orderId: t.Numeric(),
+    orderId: t.String(),
     rating: t.Numeric({ minimum: 1, maximum: 5 }),
     comment: t.Optional(t.String()),
     targetType: t.Union([t.Literal('product'), t.Literal('seller')]), // Simplified for typical flow
-    targetProductId: t.Optional(t.Numeric({ description: 'Required if targetType is product' }))
+    targetProductId: t.Optional(t.String({ description: 'Required if targetType is product' }))
 });
 
 // Schema for a User ID parameter in the URL
 const UserIdParam = t.Object({
-    userId: t.Numeric({ description: 'The unique numeric ID of the user whose reviews are being requested.' })
+    userId: t.String({ format: 'uuid', description: 'The unique numeric ID of the user whose reviews are being requested.' })
 });
 
 // -------------------------------------------------------------------
@@ -45,7 +45,7 @@ export const reviewApi = new Elysia()
             if (!token) { set.status = 401; return { error: 'Unauthorized' }; }
             const profile = await jwt.verify(token);
             if (!profile) { set.status = 401; return { error: 'Unauthorized' }; }
-            const reviewerId = Number(profile.id);
+            const reviewerId = profile.id as string;
 
             // 1. Verify Order Existence & Ownership
             const [order] = await db.select().from(ordersSchema).where(eq(ordersSchema.id, body.orderId)).limit(1);

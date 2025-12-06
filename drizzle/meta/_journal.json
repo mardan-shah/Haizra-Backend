@@ -57,6 +57,20 @@
       "when": 1765030750227,
       "tag": "0007_lush_praxagora",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1765037679448,
+      "tag": "0008_mixed_vindicator",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1765039318960,
+      "tag": "0009_narrow_proemial_gods",
+      "breakpoints": true
     }
   ]
 }

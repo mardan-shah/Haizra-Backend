@@ -11,39 +11,44 @@ import { auth } from '../utils/auth';
 
 // Schema for creating a product (listing)
 const CreateProductBody = t.Object({
-    name: t.String(),
-    description: t.Optional(t.String()),
-    price: t.Numeric(),
-    categoryId: t.Optional(t.Numeric()),
+    name: t.String({ description: 'Name of the product.' }),
+    description: t.Optional(t.String({ description: 'Detailed description of the product.' })),
+    price: t.Numeric({ description: 'Price of the product.' }),
+    categoryId: t.Optional(t.String({ format: 'uuid', description: 'UUID of the product\'s category.' })),
     media: t.Optional(t.Array(t.Object({
-        url: t.String(),
-        type: t.Union([t.Literal('image'), t.Literal('video')])
-    })))
+        url: t.String({ format: 'uri', description: 'URL of the product media (image or video).' }),
+        type: t.Union([t.Literal('image'), t.Literal('video')], { description: 'Type of media: "image" or "video".' })
+    }), { description: 'Array of product media (images/videos).' }))
 });
 
 // Schema for updating a product
 const UpdateProductBody = t.Object({
-    name: t.Optional(t.String()),
-    description: t.Optional(t.String()),
-    price: t.Optional(t.Numeric()),
-    categoryId: t.Optional(t.Numeric())
+    name: t.Optional(t.String({ description: 'Updated name of the product.' })),
+    description: t.Optional(t.String({ description: 'Updated description of the product.' })),
+    price: t.Optional(t.Numeric({ description: 'Updated price of the product.' })),
+    categoryId: t.Optional(t.String({ format: 'uuid', description: 'Updated UUID of the product\'s category.' }))
 });
 
 // Schema for creating a category
 const CreateCategoryBody = t.Object({
-    name: t.String(),
-    description: t.Optional(t.String()),
-    parentId: t.Optional(t.Numeric())
+    name: t.String({ description: 'Name of the new category.' }),
+    description: t.Optional(t.String({ description: 'Description of the new category.' })),
+    parentId: t.Optional(t.String({ format: 'uuid', description: 'UUID of the parent category if this is a subcategory.' }))
 });
 
 // Schema for a URL ID parameter
 const IdParam = t.Object({
-    id: t.Numeric({ description: 'The unique numeric ID.' })
+    id: t.String({ format: 'uuid', description: 'The unique UUID of the product or category.' })
 });
 
 // Schema for a User ID parameter in the URL
 const UserIdParam = t.Object({
-    userId: t.Numeric({ description: 'The unique numeric ID of the user.' })
+    userId: t.String({ format: 'uuid', description: 'The unique UUID of the user.' })
+});
+
+// Auth Header Schema
+const AuthHeader = t.Object({
+    authorization: t.Optional(t.String({ description: 'Bearer <token>' }))
 });
 
 // -------------------------------------------------------------------
@@ -56,6 +61,7 @@ export const productApi = new Elysia()
     .group('/product', {
         detail: {
             tags: ['Products'],
+            summary: 'Endpoints for managing products and listings.'
         }
     }, (app) => 
         app
@@ -70,7 +76,7 @@ export const productApi = new Elysia()
 
             // Create Product
             const [newProduct] = await db.insert(productsSchema).values({
-                sellerId: Number(profile.id),
+                sellerId: profile.id as string,
                 name: body.name,
                 description: body.description,
                 price: String(body.price), // Convert number to string for decimal/numeric column
@@ -100,7 +106,12 @@ export const productApi = new Elysia()
             return { message: 'Product listing created', product: newProduct };
         }, {
             body: CreateProductBody,
-            detail: { summary: 'Create Product', description: 'List a new product for sale.' }
+            headers: AuthHeader,
+            detail: { 
+                summary: 'Create Product', 
+                description: 'List a new product for sale. Requires Auth Token.',
+                security: [{ bearerAuth: [] }]
+            }
         })
 
         // -------------------------------------------------------------------
@@ -116,7 +127,7 @@ export const productApi = new Elysia()
             const [existingProduct] = await db.select().from(productsSchema).where(eq(productsSchema.id, id)).limit(1);
 
             if (!existingProduct) { set.status = 404; return { error: 'Product not found' }; }
-            if (existingProduct.sellerId !== Number(profile.id)) {
+            if (existingProduct.sellerId !== (profile.id as string)) {
                 set.status = 403; 
                 return { error: 'Forbidden', message: 'You can only edit your own products.' };
             }
@@ -136,7 +147,12 @@ export const productApi = new Elysia()
         }, {
             params: IdParam,
             body: UpdateProductBody,
-            detail: { summary: 'Update Product', description: 'Modify product details.' }
+            headers: AuthHeader,
+            detail: { 
+                summary: 'Update Product', 
+                description: 'Modify product details. Only the seller of the product can update it. Requires Auth Token.',
+                security: [{ bearerAuth: [] }]
+            }
         })
 
         // -------------------------------------------------------------------
@@ -152,7 +168,7 @@ export const productApi = new Elysia()
             const [existingProduct] = await db.select().from(productsSchema).where(eq(productsSchema.id, id)).limit(1);
 
             if (!existingProduct) { set.status = 404; return { error: 'Product not found' }; }
-            if (existingProduct.sellerId !== Number(profile.id)) {
+            if (existingProduct.sellerId !== (profile.id as string)) {
                 set.status = 403; 
                 return { error: 'Forbidden', message: 'You can only delete your own products.' };
             }
@@ -162,7 +178,12 @@ export const productApi = new Elysia()
             return { message: 'Product deleted successfully' };
         }, {
             params: IdParam,
-            detail: { summary: 'Delete Product' }
+            headers: AuthHeader,
+            detail: { 
+                summary: 'Delete Product', 
+                description: 'Delete a product listing. Only the seller of the product can delete it. Requires Auth Token.',
+                security: [{ bearerAuth: [] }]
+            }
         })
 
         // -------------------------------------------------------------------
@@ -196,17 +217,18 @@ export const productApi = new Elysia()
             };
         }, {
             params: IdParam,
-            detail: { summary: 'Get Product by ID' }
+            detail: { 
+                summary: 'Get Product by ID', 
+                description: 'Retrieves all public information for a single product, including associated media (images/videos) and seller username. No authentication required.',
+            }
         })
 
         // -------------------------------------------------------------------
-        // C. GET /listed-by/:userId - Retrieve all products listed by a user
+        // E. GET /listed-by/:userId - Retrieve all products listed by a user
         // -------------------------------------------------------------------
         .get('/listed-by/:userId', async ({ params: { userId } }) => {
             const userProducts = await db.select().from(productsSchema).where(eq(productsSchema.sellerId, userId));
             
-            // Fetch first media for each product (inefficient N+1 but simple for now given previous constraints)
-            // Better approach: separate query for media or simple loop
             const result = [];
             for (const prod of userProducts) {
                 const [firstMedia] = await db.select().from(productMediaSchema)
@@ -228,7 +250,10 @@ export const productApi = new Elysia()
             return result;
         }, {
             params: UserIdParam,
-            detail: { summary: 'Get Products by User' }
+            detail: { 
+                summary: 'Get Products by User', 
+                description: 'Retrieves a list of all products listed by a specific seller. No authentication required.',
+            }
         })
     )
     
@@ -241,14 +266,11 @@ export const productApi = new Elysia()
     }, (app) => 
         app
         // -------------------------------------------------------------------
-        // D. GET / - Get all Root Categories (with children)
+        // F. GET / - Get all Root Categories (with children)
         // -------------------------------------------------------------------
         .get('/', async () => {
-            // Fetch all categories and reconstruct hierarchy in memory or just return flat list for client to parse
-            // For now: Fetch Roots and their direct children manually
             const roots = await db.select().from(categoriesSchema).where(isNull(categoriesSchema.parentId));
             
-            // Simple 1-level deep fetch
             const result = [];
             for (const root of roots) {
                 const children = await db.select().from(categoriesSchema).where(eq(categoriesSchema.parentId, root.id));
@@ -256,11 +278,14 @@ export const productApi = new Elysia()
             }
             return result;
         }, {
-            detail: { summary: 'Get Root Categories', description: 'Returns top-level categories with their immediate subcategories.' }
+            detail: { 
+                summary: 'Get Root Categories', 
+                description: 'Returns top-level categories with their immediate subcategories. No authentication required.',
+            }
         })
 
         // -------------------------------------------------------------------
-        // E. GET /:id - Get Category by ID (with children)
+        // G. GET /:id - Get Category by ID (with children)
         // -------------------------------------------------------------------
         .get('/:id', async ({ params: { id }, set }) => {
             const [category] = await db.select().from(categoriesSchema).where(eq(categoriesSchema.id, id)).limit(1);
@@ -275,14 +300,17 @@ export const productApi = new Elysia()
             return { ...category, children };
         }, {
             params: IdParam,
-            detail: { summary: 'Get Category', description: 'Returns a specific category and its subcategories.' }
+            detail: { 
+                summary: 'Get Category by ID', 
+                description: 'Returns a specific category and its immediate subcategories. No authentication required.',
+            }
         })
 
         // -------------------------------------------------------------------
-        // F. POST / - Create Category (Admin/User for now)
+        // H. POST / - Create Category (Admin/User for now)
         // -------------------------------------------------------------------
         .post('/', async ({ body, set }) => {
-            // TODO: Add Admin Check
+            // TODO: Add Admin Check (Requires Admin role or specific permission logic)
             const [newCategory] = await db.insert(categoriesSchema).values({
                 name: body.name,
                 description: body.description,
@@ -293,7 +321,11 @@ export const productApi = new Elysia()
             return newCategory;
         }, {
             body: CreateCategoryBody,
-            detail: { summary: 'Create Category', description: 'Add a new category or subcategory.' }
+            // Authentication will be added once Admin role is defined
+            detail: { 
+                summary: 'Create Category', 
+                description: 'Add a new category or subcategory. Currently no authentication/authorization required (TODO: Add Admin Check).',
+            }
         })
     );
 

@@ -10,6 +10,11 @@ const CreateStoreBody = t.Object({
     description: t.Optional(t.String())
 });
 
+// Auth Header Schema
+const AuthHeader = t.Object({
+    authorization: t.Optional(t.String({ description: 'Bearer <token>' }))
+});
+
 export const storefrontApi = new Elysia()
     .use(auth)
     .group('/store', {
@@ -30,11 +35,16 @@ export const storefrontApi = new Elysia()
             // Update status to pending
             await db.update(usersSchema)
                 .set({ idVerificationStatus: 'pending' })
-                .where(eq(usersSchema.id, Number(profile.id)));
+                .where(eq(usersSchema.id, profile.id as string));
 
             return { message: 'Verification application submitted. Admin will review your ID.' };
         }, {
-            detail: { summary: 'Apply for Verification', description: 'Sets user ID verification status to pending.' }
+            headers: AuthHeader,
+            detail: { 
+                summary: 'Apply for Verification', 
+                description: 'Sets user ID verification status to pending. Requires Auth Token.',
+                security: [{ bearerAuth: [] }]
+            }
         })
 
         // -------------------------------------------------------------------
@@ -45,7 +55,7 @@ export const storefrontApi = new Elysia()
             if (!token) { set.status = 401; return { error: 'Unauthorized' }; }
             const profile = await jwt.verify(token);
             if (!profile) { set.status = 401; return { error: 'Unauthorized' }; }
-            const userId = Number(profile.id);
+            const userId = profile.id as string;
 
             // Check if user is verified seller (Requirement?)
             const [user] = await db.select().from(usersSchema).where(eq(usersSchema.id, userId)).limit(1);
@@ -77,14 +87,19 @@ export const storefrontApi = new Elysia()
             }
         }, {
             body: CreateStoreBody,
-            detail: { summary: 'Create/Update Store', description: 'Create or update a dedicated storefront page.' }
+            headers: AuthHeader,
+            detail: { 
+                summary: 'Create/Update Store', 
+                description: 'Create or update a dedicated storefront page. Requires Auth Token.',
+                security: [{ bearerAuth: [] }]
+            }
         })
 
         // -------------------------------------------------------------------
         // C. GET /:userId - Get Storefront by User ID
         // -------------------------------------------------------------------
         .get('/:userId', async ({ params: { userId }, set }) => {
-            const [store] = await db.select().from(storefrontsSchema).where(eq(storefrontsSchema.userId, Number(userId))).limit(1);
+            const [store] = await db.select().from(storefrontsSchema).where(eq(storefrontsSchema.userId, userId)).limit(1);
 
             if (!store) {
                 set.status = 404;

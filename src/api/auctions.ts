@@ -7,7 +7,7 @@ import { eq, gt, and, sql, desc } from 'drizzle-orm';
 import { auth } from '../utils/auth';
 
 const CreateAuctionBody = t.Object({
-    productId: t.Numeric(),
+    productId: t.String(),
     startPrice: t.Numeric(),
     endTime: t.String({ description: 'ISO Date String' })
 });
@@ -17,14 +17,15 @@ const PlaceBidBody = t.Object({
 });
 
 const IdParam = t.Object({
-    id: t.Numeric()
+    id: t.String({ format: 'uuid' })
 });
 
 export const auctionApi = new Elysia()
     .use(auth)
     .group('/auction', {
         detail: {
-            tags: ['Auctions']
+            tags: ['Auctions'],
+            summary: 'Bidding and Auction management.'
         }
     }, (app) => app
         // -------------------------------------------------------------------
@@ -40,7 +41,7 @@ export const auctionApi = new Elysia()
             const [product] = await db.select().from(productsSchema).where(eq(productsSchema.id, body.productId)).limit(1);
 
             if (!product) { set.status = 404; return { error: 'Product not found' }; }
-            if (product.sellerId !== Number(profile.id)) {
+            if (product.sellerId !== profile.id) {
                 set.status = 403; 
                 return { error: 'Forbidden', message: 'You can only auction your own products.' };
             }
@@ -55,7 +56,7 @@ export const auctionApi = new Elysia()
             // Create Auction
             const [auction] = await db.insert(auctionsSchema).values({
                 productId: body.productId,
-                sellerId: Number(profile.id),
+                sellerId: profile.id as string,
                 startPrice: String(body.startPrice),
                 currentPrice: String(body.startPrice),
                 endTime: new Date(body.endTime),
@@ -77,9 +78,9 @@ export const auctionApi = new Elysia()
             if (!token) { set.status = 401; return { error: 'Unauthorized' }; }
             const profile = await jwt.verify(token);
             if (!profile) { set.status = 401; return { error: 'Unauthorized' }; }
-            const bidderId = Number(profile.id);
+            const bidderId = profile.id as string;
 
-            const auctionId = Number(id);
+            const auctionId = id;
 
             // Run in transaction to ensure atomicity
             try {
@@ -134,7 +135,7 @@ export const auctionApi = new Elysia()
         // -------------------------------------------------------------------
         .get('/:id', async ({ params: { id }, set }) => {
              // Fetch main auction details
-             const [auction] = await db.select().from(auctionsSchema).where(eq(auctionsSchema.id, Number(id))).limit(1);
+             const [auction] = await db.select().from(auctionsSchema).where(eq(auctionsSchema.id, id)).limit(1);
 
              if (!auction) {
                  set.status = 404;

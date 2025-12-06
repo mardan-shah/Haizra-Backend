@@ -46,11 +46,16 @@ const CreateAddressBody = t.Object({
     isDefault: t.Optional(t.Boolean())
 });
 
-const AddressIdParam = t.Object({ id: t.Numeric() });
+const AddressIdParam = t.Object({ id: t.String({ format: 'uuid' }) });
 
 // Schema for a URL ID parameter
 const IdParam = t.Object({
-    id: t.Numeric({ description: 'The unique numeric ID.' })
+    id: t.String({ format: 'uuid', description: 'The unique numeric ID.' })
+});
+
+// Auth Header Schema
+const AuthHeader = t.Object({
+    authorization: t.Optional(t.String({ description: 'Bearer <token>' }))
 });
 
 
@@ -63,6 +68,7 @@ export const userApi = new Elysia()
   .group('/user', {
     detail: {
       tags: ['User'],
+      summary: 'Endpoints for user management and authentication.',
     },
   }, (app) =>
     app
@@ -214,7 +220,7 @@ export const userApi = new Elysia()
             if (!token) { set.status = 401; return { error: 'Unauthorized' }; }
             const profile = await jwt.verify(token);
             if (!profile) { set.status = 401; return { error: 'Unauthorized' }; }
-            const userId = Number(profile.id);
+            const userId = profile.id as string; // Ensure UUID string
 
             const updateData: any = {
                 updatedAt: new Date()
@@ -256,7 +262,12 @@ export const userApi = new Elysia()
             return { message: 'Profile updated', user: updatedUser };
       }, {
           body: UpdateProfileBody,
-          detail: { summary: 'Update Profile', description: 'Update details including email and password.' }
+          headers: AuthHeader,
+          detail: { 
+              summary: 'Update Profile', 
+              description: 'Update details including email and password. Requires Auth Token.',
+              security: [{ bearerAuth: [] }]
+          }
       })
 
       // -------------------------------------------------------------------
@@ -270,7 +281,7 @@ export const userApi = new Elysia()
               if (!token) { set.status = 401; return { error: 'Unauthorized' }; }
               const profile = await jwt.verify(token);
               if (!profile) { set.status = 401; return { error: 'Unauthorized' }; }
-              const userId = Number(profile.id);
+              const userId = profile.id as string;
 
               // 1. Create physical address record
               const [newAddress] = await db.insert(addressesSchema).values({
@@ -287,7 +298,6 @@ export const userApi = new Elysia()
                   set.status = 500;
                   return { error: 'Internal Server Error', message: 'Failed to create address record.' };
               }
-
 
               // 2. Link to user
               if (body.isDefault) {
@@ -307,7 +317,12 @@ export const userApi = new Elysia()
               return { message: 'Address added', address: newAddress };
           }, {
               body: CreateAddressBody,
-              detail: { summary: 'Add Address', description: 'Add a new address line for the user.' }
+              headers: AuthHeader,
+              detail: { 
+                  summary: 'Add Address', 
+                  description: 'Add a new address line for the user. Requires Auth Token.',
+                  security: [{ bearerAuth: [] }]
+              }
           })
 
           // GET /user/address - List Addresses
@@ -317,7 +332,7 @@ export const userApi = new Elysia()
               if (!token) { set.status = 401; return { error: 'Unauthorized' }; }
               const profile = await jwt.verify(token);
               if (!profile) { set.status = 401; return { error: 'Unauthorized' }; }
-              const userId = Number(profile.id);
+              const userId = profile.id as string;
 
               // Join userAddresses with addresses
               const result = await db.select({
@@ -338,7 +353,12 @@ export const userApi = new Elysia()
 
               return result;
           }, {
-              detail: { summary: 'List Addresses', description: 'Get all addresses for the user.' }
+              headers: AuthHeader,
+              detail: { 
+                  summary: 'List Addresses', 
+                  description: 'Get all addresses for the user. Requires Auth Token.',
+                  security: [{ bearerAuth: [] }]
+              }
           })
 
           // PUT /user/address/:id/default - Set Default
@@ -348,8 +368,8 @@ export const userApi = new Elysia()
               if (!token) { set.status = 401; return { error: 'Unauthorized' }; }
               const profile = await jwt.verify(token);
               if (!profile) { set.status = 401; return { error: 'Unauthorized' }; }
-              const userId = Number(profile.id);
-              const addressId = Number(id);
+              const userId = profile.id as string;
+              const addressId = id;
 
               // Unset previous default
               await db.update(userAddressesSchema)
@@ -373,7 +393,12 @@ export const userApi = new Elysia()
               return { message: 'Default address updated' };
           }, {
               params: AddressIdParam,
-              detail: { summary: 'Set Default Address', description: 'Mark a specific address as default.' }
+              headers: AuthHeader,
+              detail: { 
+                  summary: 'Set Default Address', 
+                  description: 'Mark a specific address as default. Requires Auth Token.',
+                  security: [{ bearerAuth: [] }]
+              }
           })
       )
 
@@ -409,7 +434,7 @@ export const userApi = new Elysia()
                 isVerifiedSeller: usersSchema.isVerifiedSeller,
                 sellerRating: usersSchema.sellerRating,
                 buyerRating: usersSchema.buyerRating
-            }).from(usersSchema).where(eq(usersSchema.id, Number(profile.id))).limit(1);
+            }).from(usersSchema).where(eq(usersSchema.id, profile.id as string)).limit(1);
 
             if (!user) {
                 set.status = 404;
@@ -418,6 +443,7 @@ export const userApi = new Elysia()
 
             return user;
       }, {
+          headers: AuthHeader,
           detail: {
               summary: 'Get Current User Profile',
               description: 'Returns the profile of the currently logged-in user. Supports both Cookie and Bearer token.',

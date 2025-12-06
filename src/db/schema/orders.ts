@@ -1,5 +1,5 @@
 // orders.ts
-import { pgTable, serial, varchar, timestamp, integer, decimal, pgEnum } from 'drizzle-orm/pg-core';
+import { pgTable, varchar, timestamp, integer, decimal, pgEnum, uuid } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { users } from './users';
 import { addresses } from './addresses';
@@ -26,12 +26,12 @@ export const paymentMethodEnum = pgEnum('payment_method', [
 // --- Orders Table ---
 // This table tracks a customer's purchase from a seller.
 export const orders = pgTable('orders', {
-  id: serial('id').primaryKey(),
-  buyerId: integer('buyer_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
+  id: uuid('id').defaultRandom().primaryKey(),
+  buyerId: uuid('buyer_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
   
   // Storing both shipping and billing addresses.
-  shippingAddressId: integer('shipping_address_id').notNull().references(() => addresses.id, { onDelete: 'restrict' }),
-  billingAddressId: integer('billing_address_id').references(() => addresses.id, { onDelete: 'restrict' }),
+  shippingAddressId: uuid('shipping_address_id').notNull().references(() => addresses.id, { onDelete: 'restrict' }),
+  billingAddressId: uuid('billing_address_id').references(() => addresses.id, { onDelete: 'restrict' }),
 
   status: orderStatusEnum('status').default('pending_payment').notNull(),
   totalAmount: decimal('total_amount', { precision: 10, scale: 2 }).notNull(),
@@ -47,9 +47,9 @@ export const orders = pgTable('orders', {
 // --- Order Items Table ---
 // A junction table linking products to an order.
 export const orderItems = pgTable('order_items', {
-  id: serial('id').primaryKey(),
-  orderId: integer('order_id').notNull().references(() => orders.id, { onDelete: 'cascade' }),
-  productId: integer('product_id').notNull().references(() => products.id, { onDelete: 'restrict' }),
+  id: uuid('id').defaultRandom().primaryKey(),
+  orderId: uuid('order_id').notNull().references(() => orders.id, { onDelete: 'cascade' }),
+  productId: uuid('product_id').notNull().references(() => products.id, { onDelete: 'restrict' }),
   quantity: integer('quantity').notNull(),
   // Records the price at the time of purchase to avoid issues with future price changes.
   priceAtPurchase: decimal('price_at_purchase', { precision: 10, scale: 2 }).notNull(),

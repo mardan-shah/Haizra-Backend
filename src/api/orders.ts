@@ -10,8 +10,8 @@ import { auth } from '../utils/auth';
 
 // Schema for creating an order
 const CreateOrderBody = t.Object({
-    shippingAddressId: t.Numeric(),
-    billingAddressId: t.Optional(t.Numeric()),
+    shippingAddressId: t.String(),
+    billingAddressId: t.Optional(t.String()),
     paymentMethod: t.Union([
         t.Literal('card'), 
         t.Literal('easypaisa'), 
@@ -19,7 +19,7 @@ const CreateOrderBody = t.Object({
         t.Literal('cash_on_delivery')
     ]),
     items: t.Array(t.Object({
-        productId: t.Numeric(),
+        productId: t.String(),
         quantity: t.Numeric()
     }))
 });
@@ -28,6 +28,10 @@ const CreateOrderBody = t.Object({
 const PayOrderBody = t.Object({
     provider: t.Union([t.Literal('stripe'), t.Literal('easypaisa'), t.Literal('jazzcash')]),
     transactionId: t.String()
+});
+
+const IdParam = t.Object({
+    id: t.String({ format: 'uuid' })
 });
 
 export const orderApi = new Elysia()
@@ -46,7 +50,7 @@ export const orderApi = new Elysia()
             if (!token) { set.status = 401; return { error: 'Unauthorized' }; }
             const profile = await jwt.verify(token);
             if (!profile) { set.status = 401; return { error: 'Unauthorized' }; }
-            const buyerId = Number(profile.id);
+            const buyerId = profile.id as string;
 
             // 2. Validate COD Strikes if method is COD
             if (body.paymentMethod === 'cash_on_delivery') {
@@ -65,7 +69,7 @@ export const orderApi = new Elysia()
             // 3. Calculate Total & Verify Products
             let totalAmount = 0;
             // Explicit type definition to fix TS error
-            const productDetails: { productId: number; price: string; quantity: number }[] = [];
+            const productDetails: { productId: string; price: string; quantity: number }[] = [];
 
             for (const item of body.items) {
                 const [product] = await db.select().from(productsSchema).where(eq(productsSchema.id, item.productId)).limit(1);
@@ -143,7 +147,7 @@ export const orderApi = new Elysia()
         // -------------------------------------------------------------------
         .post('/:id/pay', async ({ params: { id }, body, set }) => {
             
-            const [payment] = await db.select().from(paymentsSchema).where(eq(paymentsSchema.orderId, Number(id))).limit(1);
+            const [payment] = await db.select().from(paymentsSchema).where(eq(paymentsSchema.orderId, id)).limit(1);
             
             if (!payment) {
                 set.status = 404;
@@ -176,11 +180,12 @@ export const orderApi = new Elysia()
                 // Update Order Status
                 await tx.update(ordersSchema)
                     .set({ status: 'processing' })
-                    .where(eq(ordersSchema.id, Number(id)));
+                    .where(eq(ordersSchema.id, id));
             });
 
             return { message: 'Payment received and held in escrow.' };
         }, {
+            params: IdParam,
             body: PayOrderBody,
             detail: {
                 summary: 'Process Payment',
@@ -197,11 +202,11 @@ export const orderApi = new Elysia()
              const profile = await jwt.verify(token);
              if (!profile) { set.status = 401; return { error: 'Unauthorized' }; }
  
-             // Verify User is the Buyer - Using select instead of query to avoid type issues
-             const [order] = await db.select().from(ordersSchema).where(eq(ordersSchema.id, Number(id))).limit(1);
+             // Verify User is the Buyer
+             const [order] = await db.select().from(ordersSchema).where(eq(ordersSchema.id, id)).limit(1);
 
              if (!order) { set.status = 404; return { error: 'Order not found' }; }
-             if (order.buyerId !== Number(profile.id)) {
+             if (order.buyerId !== profile.id) {
                  set.status = 403;
                  return { error: 'Forbidden', message: 'Only the buyer can confirm delivery.' };
              }
@@ -211,6 +216,27 @@ export const orderApi = new Elysia()
                  // Update Order
                  await tx.update(ordersSchema).set({ status: 'delivered', deliveryStatus: 'delivered' }).where(eq(ordersSchema.id, order.id));
                  
+                 // Increment Buyer's Completed Buy Orders
+                 await tx.update(usersSchema)
+                     .set({ completedBuyOrders: sql`${usersSchema.completedBuyOrders} + 1` })
+                     .where(eq(usersSchema.id, order.buyerId));
+
+                 // Find Sellers involved in this order
+                 const items = await tx.select({ sellerId: productsSchema.sellerId })
+                     .from(orderItemsSchema)
+                     .innerJoin(productsSchema, eq(orderItemsSchema.productId, productsSchema.id))
+                     .where(eq(orderItemsSchema.orderId, order.id));
+                 
+                 // Get unique seller IDs
+                 const uniqueSellers = [...new Set(items.map(i => i.sellerId))];
+
+                 // Increment Seller's Completed Sell Orders for each unique seller
+                 for (const sellerId of uniqueSellers) {
+                     await tx.update(usersSchema)
+                         .set({ completedSellOrders: sql`${usersSchema.completedSellOrders} + 1` })
+                         .where(eq(usersSchema.id, sellerId));
+                 }
+
                  // Find associated payment and escrow
                  // Manual fetch since we aren't using relations here
                  const [payment] = await tx.select().from(paymentsSchema).where(eq(paymentsSchema.orderId, order.id)).limit(1);
@@ -228,6 +254,7 @@ export const orderApi = new Elysia()
 
              return { message: 'Delivery confirmed. Funds released to seller.' };
         }, {
+            params: IdParam,
             detail: {
                 summary: 'Confirm Delivery',
                 description: 'Buyer confirms receipt. Releases funds from escrow to the seller.'
@@ -241,7 +268,7 @@ export const orderApi = new Elysia()
              if (!token) { set.status = 401; return { error: 'Unauthorized' }; }
              const profile = await jwt.verify(token);
              if (!profile) { set.status = 401; return { error: 'Unauthorized' }; }
-             const sellerId = Number(profile.id);
+             const sellerId = profile.id as string;
 
              // Find order items for products sold by this user
              // Using explicit table selection to avoid type errors with nesting

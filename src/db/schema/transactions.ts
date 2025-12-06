@@ -1,5 +1,5 @@
 // transactions.ts
-import { pgTable, serial, varchar, timestamp, integer, decimal, pgEnum } from 'drizzle-orm/pg-core';
+import { pgTable, varchar, timestamp, integer, decimal, pgEnum, uuid } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { orders } from './orders';
 
@@ -10,8 +10,8 @@ export const paymentProviderEnum = pgEnum('payment_provider', ['stripe', 'easypa
 // --- Payments Table ---
 // This table logs all payment transactions related to an order.
 export const payments = pgTable('payments', {
-    id: serial('id').primaryKey(),
-    orderId: integer('order_id').notNull().references(() => orders.id, { onDelete: 'cascade' }),
+    id: uuid('id').defaultRandom().primaryKey(),
+    orderId: uuid('order_id').notNull().references(() => orders.id, { onDelete: 'cascade' }),
     amount: decimal('amount', { precision: 10, scale: 2 }).notNull(),
     provider: paymentProviderEnum('provider').notNull(),
     // The transaction ID from the external payment provider.
@@ -25,8 +25,8 @@ export const escrowStatusEnum = pgEnum('escrow_status', ['held', 'released', 're
 // --- Escrow Table ---
 // Holds payments until the buyer confirms receipt or a return is settled.
 export const escrow = pgTable('escrow', {
-    id: serial('id').primaryKey(),
-    paymentId: integer('payment_id').notNull().unique().references(() => payments.id, { onDelete: 'cascade' }),
+    id: uuid('id').defaultRandom().primaryKey(),
+    paymentId: uuid('payment_id').notNull().unique().references(() => payments.id, { onDelete: 'cascade' }),
     releaseAt: timestamp('release_at'), // When the funds are scheduled to be released
     status: escrowStatusEnum('status'),
     createdAt: timestamp('created_at').default(sql`now()`).notNull(),
