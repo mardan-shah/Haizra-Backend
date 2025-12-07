@@ -261,7 +261,6 @@ export const productApi = new Elysia()
     .group('/categories', {
         detail: {
             tags: ['Categories'],
-            summary: 'Browse and manage categories.'
         }
     }, (app) => 
         app
