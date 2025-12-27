@@ -68,7 +68,6 @@ export const userApi = new Elysia()
   .group('/user', {
     detail: {
       tags: ['User'],
-      summary: 'Endpoints for user management and authentication.',
     },
   }, (app) =>
     app

@@ -176,7 +176,6 @@ export const reviewApi = new Elysia()
             params: UserIdParam,
             detail: {
                 summary: 'Get Reviews for a User',
-                description: 'Retrieves a list of all reviews where the specified user is the subject (either as a buyer or a seller).',
                 responses: {
                     200: { description: 'Returned a list of reviews.' },
                 }

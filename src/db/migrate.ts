@@ -12,9 +12,6 @@ if (!DB_URL) {
 }
 
 const migrationClient = postgres(DB_URL, { 
-    ssl: { 
-        rejectUnauthorized: false 
-    },
     max: 1
 });
 const db = drizzle(migrationClient);

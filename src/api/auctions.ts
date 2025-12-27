@@ -25,7 +25,6 @@ export const auctionApi = new Elysia()
     .group('/auction', {
         detail: {
             tags: ['Auctions'],
-            summary: 'Bidding and Auction management.'
         }
     }, (app) => app
         // -------------------------------------------------------------------

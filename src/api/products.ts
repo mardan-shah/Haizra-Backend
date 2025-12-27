@@ -61,7 +61,6 @@ export const productApi = new Elysia()
     .group('/product', {
         detail: {
             tags: ['Products'],
-            summary: 'Endpoints for managing products and listings.'
         }
     }, (app) => 
         app

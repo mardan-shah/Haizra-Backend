@@ -90,7 +90,6 @@ export const storefrontApi = new Elysia()
             headers: AuthHeader,
             detail: { 
                 summary: 'Create/Update Store', 
-                description: 'Create or update a dedicated storefront page. Requires Auth Token.',
                 security: [{ bearerAuth: [] }]
             }
         })

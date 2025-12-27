@@ -19,8 +19,6 @@ export const verificationStatusEnum = pgEnum('verification_status', [
   'rejected',
 ]);
 
-// --- Users Table ---
-// This table holds all user account and profile data.
 export const users = pgTable('users', {
   id: uuid('id').defaultRandom().primaryKey(),
   email: varchar('email', { length: 256 }).notNull().unique(),
@@ -49,8 +47,6 @@ export const users = pgTable('users', {
   usernameIdx: index('username_idx').on(table.username),
 }));
 
-// --- Storefronts Table ---
-// A dedicated storefront for a verified seller (1-to-1 with users).
 export const storefronts = pgTable('storefronts', {
     id: uuid('id').defaultRandom().primaryKey(),
     userId: uuid('user_id').notNull().unique().references(() => users.id, { onDelete: 'cascade' }),
