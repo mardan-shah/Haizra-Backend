@@ -1,5 +1,6 @@
 import { Elysia } from 'elysia';
 import { swagger } from '@elysiajs/swagger';
+import { cors } from '@elysiajs/cors';
 import { db } from './db/db';
 import { userApi } from './api/users';
 import { productApi } from './api/products';
@@ -9,6 +10,23 @@ import { auctionApi } from './api/auctions';
 import { storefrontApi } from './api/storefronts';
 
 const app = new Elysia()
+  .use(cors({
+      origin: (request): boolean => {
+        const origin = request.headers.get('origin')
+        if (!origin) return false
+        
+        // Allow Localhost for development
+        if (origin.startsWith('http://localhost:')) return true
+        
+        // Allow Production Domains
+        if (process.env.NODE_ENV === 'production') {
+           return /.*\.haizra\.com$/.test(origin)
+        }
+        
+        return true
+      },
+      credentials: true
+  }))
   .use(
     swagger({
       path: '/api-docs',

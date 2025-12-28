@@ -74,7 +74,7 @@ export const userApi = new Elysia()
       // -------------------------------------------------------------------
       // A. POST /user/signup - Register a new user
       // -------------------------------------------------------------------
-      .post('/signup', async ({ body, set, jwt, cookie }) => {
+      .post('/signup', async ({ body, set, jwt, cookie, request }) => {
           // Check if user already exists (email or username)
           const [existingUser] = await db.select().from(usersSchema)
             .where(or(eq(usersSchema.email, body.email), eq(usersSchema.username, body.username)))
@@ -115,12 +115,18 @@ export const userApi = new Elysia()
           
           // Set HttpOnly Cookie for Web Security
           if (cookie && cookie.auth_token) {
+             const origin = request.headers.get('origin') || '';
+             const isProd = process.env.NODE_ENV === 'production';
+             // If from localhost, don't set domain (defaults to host). If prod and not localhost, set .haizra.com
+             const cookieDomain = (isProd && !origin.includes('localhost')) ? '.haizra.com' : undefined;
+
              cookie.auth_token.set({
                  value: token,
                  httpOnly: true,
-                 secure: process.env.NODE_ENV === 'production',
+                 secure: isProd, 
                  maxAge: 7 * 86400, // 7 Days
-                 path: '/'
+                 path: '/',
+                 domain: cookieDomain
              });
           }
           
@@ -147,7 +153,7 @@ export const userApi = new Elysia()
       // -------------------------------------------------------------------
       // B. POST /user/signin - Authenticate a user
       // -------------------------------------------------------------------
-      .post('/signin', async ({ body, set, jwt, cookie }) => {
+      .post('/signin', async ({ body, set, jwt, cookie, request }) => {
             // Find the user by email OR username
             const [user] = await db.select().from(usersSchema)
                 .where(or(eq(usersSchema.email, body.email), eq(usersSchema.username, body.email)))
@@ -175,12 +181,17 @@ export const userApi = new Elysia()
 
             // Set HttpOnly Cookie for Web Security
             if (cookie && cookie.auth_token) {
+                 const origin = request.headers.get('origin') || '';
+                 const isProd = process.env.NODE_ENV === 'production';
+                 const cookieDomain = (isProd && !origin.includes('localhost')) ? '.haizra.com' : undefined;
+
                  cookie.auth_token.set({
                     value: token,
                     httpOnly: true,
-                    secure: process.env.NODE_ENV === 'production',
+                    secure: isProd,
                     maxAge: 7 * 86400, // 7 Days
-                    path: '/'
+                    path: '/',
+                    domain: cookieDomain
                 });
             }
 
