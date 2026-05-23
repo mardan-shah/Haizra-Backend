@@ -126,6 +126,4 @@ The platform contains a dedicated `nixpacks.toml` file, making it compatible out
 
 ```
 
-You can download this generated `.md` file, commit it right to the root of your `haizra-backend` repository, and push it live to instantly make your GitHub look highly professional!
-
 ```
