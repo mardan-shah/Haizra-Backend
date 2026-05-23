@@ -80,10 +80,9 @@ The data tier maps out fully normalized, complex relational constraints with str
 Ensure you have the latest **Bun** version configured on your machine.
 
 1. **Clone the repository:**
-   ```bash
-   git clone [https://github.com/mardan-shah/haizra-backend.git](https://github.com/mardan-shah/haizra-backend.git)
-   cd haizra-backend
-
+```bash
+git clone [https://github.com/mardan-shah/haizra-backend.git](https://github.com/mardan-shah/haizra-backend.git)
+cd haizra-backend
 ```
 
 2. **Install strict dependencies:**
