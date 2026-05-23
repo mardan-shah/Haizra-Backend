@@ -5,8 +5,6 @@
 The backend enforces a strict decoupled data layer with explicit modular boundaries. The structure is broken down into four isolated operational tiers:
 
 
-```
-
 
 ```
               ┌─────────────────────────────────────────┐
@@ -35,7 +33,6 @@ The backend enforces a strict decoupled data layer with explicit modular boundar
 
 ```
 
-```
 
 ### 1. Operations & Configuration Layer (`Ops`)
 Manages runtime configuration, development tooling scripts, and automated orchestration files:
